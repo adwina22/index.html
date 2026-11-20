@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Asas Barista – Dashboard Pembelajaran Interaktif</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            espresso:  { DEFAULT: '#2C1A0E', 50: '#f9f4ef', 100: '#ede0d0', 200: '#d9bb99', 300: '#c49560', 400: '#a96f30', 500: '#7a4a1a', 600: '#5a3410', 700: '#3e220a', 800: '#2C1A0E', 900: '#1a0e06' },
+            latte:     { DEFAULT: '#C8A97E', light: '#EDD9B8', cream: '#F5ECD7' },
+            mocha:     { DEFAULT: '#7B4F2E', light: '#A67C52' },
+          },
+          fontFamily: {
+            sans: ['Segoe UI', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* =========================================================
+       GLOBAL STYLES
+    ========================================================= */
+    * { box-sizing: border-box; }
+    body { background: #F5ECD7; color: #2C1A0E; font-family: 'Segoe UI', system-ui, sans-serif; }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #EDD9B8; }
+    ::-webkit-scrollbar-thumb { background: #C8A97E; border-radius: 3px; }
+
+    /* Sidebar */
+    #sidebar { transition: width 0.3s ease; }
+    #sidebar.collapsed { width: 64px !important; }
+    #sidebar.collapsed .sidebar-text { display: none; }
+    #sidebar.collapsed .chapter-items { display: none; }
+
+    /* Accordion */
+    .chapter-items { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+    .chapter-items.open { max-height: 1200px; }
+
+    /* Active nav item */
+    .nav-item.active { background: #C8A97E; color: #2C1A0E; font-weight: 700; }
+    .nav-item:hover:not(.active) { background: rgba(200,169,126,0.25); }
+
+    /* Progress bar fill animation */
+    .progress-fill { transition: width 0.6s ease; }
+
+    /* Flashcard flip */
+    .card-scene { perspective: 800px; }
+    .card-inner { transition: transform 0.55s; transform-style: preserve-3d; position: relative; }
+    .card-inner.flipped { transform: rotateY(180deg); }
+    .card-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+    .card-back { transform: rotateY(180deg); }
+
+    /* Search highlight */
+    mark { background: #f9d87a; color: #2C1A0E; border-radius: 2px; padding: 0 2px; }
+
+    /* Content sections */
+    .content-section { display: none; }
+    .content-section.active { display: block; }
+
+    /* Step list */
+    .step-item { counter-increment: step-counter; }
+    .step-item::before { content: counter(step-counter); display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; background: #7B4F2E; color: #fff; border-radius: 50%; font-weight: 700; font-size: 13px; margin-right: 10px; flex-shrink: 0; }
+
+    /* Badge */
+    .badge-done { background: #3a7d44; color: #fff; }
+    .badge-todo { background: #C8A97E; color: #2C1A0E; }
+
+    /* Tooltip */
+    [data-tip] { position: relative; cursor: help; }
+    [data-tip]:hover::after { content: attr(data-tip); position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%); background: #2C1A0E; color: #F5ECD7; font-size: 12px; padding: 4px 8px; border-radius: 6px; white-space: nowrap; z-index: 99; pointer-events: none; }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+<!-- ===================== TOP NAVBAR ===================== -->
+<header class="bg-espresso text-latte-cream shadow-lg z-30 sticky top-0">
+  <div class="flex items-center gap-3 px-4 py-3">
+    <!-- Hamburger -->
+    <button id="toggleSidebar" class="p-2 rounded-lg hover:bg-mocha transition" title="Buka / Tutup Navigasi">
+      <i data-lucide="menu" class="w-5 h-5 text-latte-light"></i>
+    </button>
+
+    <!-- Logo area -->
+    <div class="flex items-center gap-2">
+      <div class="w-9 h-9 bg-latte rounded-full flex items-center justify-center">
+        <i data-lucide="coffee" class="w-5 h-5 text-espresso"></i>
+      </div>
+      <div class="leading-tight">
+        <div class="font-bold text-latte-light text-sm sm:text-base sidebar-text">Asas Barista</div>
+        <div class="text-xs text-latte opacity-75 sidebar-text">Politeknik Kota Kinabalu</div>
+      </div>
+    </div>
+
+    <!-- Search bar -->
+    <div class="flex-1 max-w-md mx-4 relative">
+      <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-latte opacity-60 pointer-events-none"></i>
+      <input id="searchInput" type="text" placeholder="Cari topik atau istilah barista…"
+        class="w-full pl-9 pr-4 py-2 rounded-lg bg-mocha text-latte-cream placeholder-latte text-sm outline-none focus:ring-2 focus:ring-latte border border-mocha-light" />
+    </div>
+
+    <!-- Progress badge -->
+    <div class="hidden sm:flex items-center gap-2 ml-auto">
+      <i data-lucide="bar-chart-2" class="w-4 h-4 text-latte"></i>
+      <span id="progressBadge" class="text-sm text-latte-light font-semibold">0%</span>
+      <span class="text-xs text-latte opacity-70">selesai</span>
+    </div>
+  </div>
+
+  <!-- Overall progress bar -->
+  <div class="h-1 bg-mocha">
+    <div id="overallProgressBar" class="h-1 bg-latte progress-fill" style="width:0%"></div>
+  </div>
+</header>
+
+<!-- ===================== MAIN LAYOUT ===================== -->
+<div class="flex flex-1 overflow-hidden" style="height: calc(100vh - 60px);">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside id="sidebar" class="bg-espresso-800 text-latte-cream flex flex-col overflow-y-auto" style="width:280px; min-width:280px;">
+
+    <!-- Course info panel -->
+    <div class="p-4 border-b border-mocha sidebar-text">
+      <div class="text-xs uppercase tracking-widest text-latte opacity-60 mb-1">Kursus</div>
+      <div class="font-semibold text-latte-light text-sm">Sijil Khas Operasi Katering</div>
+      <div class="text-xs text-latte mt-0.5">Semester 3 · OKU Pendengaran</div>
+    </div>
+
+    <!-- Nav chapters rendered by JS -->
+    <nav id="sidebarNav" class="flex-1 py-2"></nav>
+
+    <!-- Reset progress button -->
+    <div class="p-3 border-t border-mocha sidebar-text">
+      <button id="resetProgress" class="w-full text-xs text-latte opacity-60 hover:opacity-100 flex items-center justify-center gap-1 py-1 rounded hover:bg-mocha transition">
+        <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
+        <span>Set Semula Kemajuan</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN CONTENT AREA ============ -->
+  <main id="mainContent" class="flex-1 overflow-y-auto bg-latte-cream">
+
+    <!-- HOME / OVERVIEW PANEL -->
+    <section id="section-home" class="content-section active p-6 max-w-4xl mx-auto">
+      <!-- Welcome card -->
+      <div class="rounded-2xl bg-espresso text-latte-cream p-6 mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <div class="w-16 h-16 bg-latte rounded-full flex items-center justify-center flex-shrink-0">
+          <i data-lucide="coffee" class="w-9 h-9 text-espresso"></i>
+        </div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold text-latte-light">Selamat Datang ke Dashboard Asas Barista</h1>
+          <p class="text-latte text-sm mt-1">Jabatan Pelancongan & Hospitaliti · Politeknik Kota Kinabalu</p>
+          <p class="text-latte-cream text-sm mt-2 opacity-80">Pilih bab dari navigasi di sebelah kiri untuk mula belajar. Gunakan carian di atas untuk mencari topik dengan cepat.</p>
+        </div>
+      </div>
+
+      <!-- Chapter overview cards -->
+      <h2 class="text-lg font-bold text-espresso mb-3 flex items-center gap-2">
+        <i data-lucide="layout-grid" class="w-5 h-5 text-mocha"></i>
+        Gambaran Keseluruhan Bab
+      </h2>
+      <div id="chapterOverview" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8"></div>
+
+      <!-- Visual legend -->
+      <div class="rounded-xl bg-white border border-latte p-4">
+        <h3 class="font-bold text-espresso text-sm mb-3 flex items-center gap-2">
+          <i data-lucide="info" class="w-4 h-4 text-mocha"></i> Panduan Penggunaan Dashboard
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+          <div class="flex items-start gap-2">
+            <span class="w-6 h-6 rounded-full bg-latte flex items-center justify-center flex-shrink-0"><i data-lucide="check-circle" class="w-4 h-4 text-espresso"></i></span>
+            <span class="text-espresso">Klik butang <strong>Tandakan Selesai</strong> selepas habis membaca setiap topik</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="w-6 h-6 rounded-full bg-latte flex items-center justify-center flex-shrink-0"><i data-lucide="layers" class="w-4 h-4 text-espresso"></i></span>
+            <span class="text-espresso">Latihan <strong>Kad Imbas (Flashcard)</strong> tersedia di hujung setiap bab</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="w-6 h-6 rounded-full bg-latte flex items-center justify-center flex-shrink-0"><i data-lucide="search" class="w-4 h-4 text-espresso"></i></span>
+            <span class="text-espresso">Gunakan <strong>bar carian</strong> di bahagian atas untuk mencari istilah</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="w-6 h-6 rounded-full bg-latte flex items-center justify-center flex-shrink-0"><i data-lucide="save" class="w-4 h-4 text-espresso"></i></span>
+            <span class="text-espresso">Kemajuan anda disimpan secara <strong>automatik</strong> dalam pelayar ini</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DYNAMIC TOPIC SECTIONS rendered by JS -->
+    <div id="topicSections"></div>
+
+    <!-- SEARCH RESULTS PANEL -->
+    <section id="section-search" class="content-section p-6 max-w-4xl mx-auto">
+      <h2 class="text-lg font-bold text-espresso mb-4 flex items-center gap-2">
+        <i data-lucide="search" class="w-5 h-5 text-mocha"></i>
+        Keputusan Carian
+      </h2>
+      <div id="searchResults" class="space-y-3"></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===================== DATA & LOGIC ===================== -->
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  CURRICULUM DATA
+//  ─────────────────────────────────────────────────────────────
+//  Setiap objek `chapter` mengandungi:
+//    id       – string unik untuk navigasi & localStorage
+//    title    – tajuk bab
+//    icon     – nama ikon Lucide
+//    color    – kelas warna latar kad
+//    topics   – array subtopik
+//
+//  Setiap `topic` mengandungi:
+//    id       – string unik
+//    title    – tajuk subtopik
+//    content  – HTML ringkasan penerangan (ganti dengan nota sebenar anda)
+//    steps    – array langkah prosedur (optional)
+//    table    – { headers:[], rows:[] } (optional)
+//    info     – array { icon, label, value } untuk kad info (optional)
+// ═══════════════════════════════════════════════════════════════
+
+const curriculum = [
+
+  // ───────────────────────────────────────────────────────
+  // BAB 1: PENGENALAN KEPADA BARISTA
+  // ───────────────────────────────────────────────────────
+  {
+    id: "bab1",
+    title: "Bab 1 — Pengenalan kepada Barista",
+    icon: "user-check",
+    color: "bg-amber-700",
+    flashcards: [
+      // [SUNTING] Soalan & jawapan kuiz untuk Bab 1
+      { q: "Apakah definisi barista?", a: "Barista adalah profesional yang terlatih dalam menyediakan dan menghidangkan minuman berasaskan kopi, terutamanya espresso, dengan kemahiran teknikal dan servis pelanggan yang tinggi." },
+      { q: "Nyatakan 3 tugas utama seorang barista.", a: "① Menyediakan minuman kopi berkualiti ② Mengekalkan kebersihan peralatan dan kaunter ③ Memberikan perkhidmatan pelanggan yang mesra dan profesional" },
+      { q: "Apakah konsep perkhidmatan kaunter?", a: "Perkhidmatan kaunter ialah kaedah penghidangan di mana barista berinteraksi langsung dengan pelanggan di kaunter, mengambil pesanan, menyediakan minuman, dan menyajikannya dengan cepat dan tepat." },
+      { q: "Mengapa kebersihan diri barista penting?", a: "Kebersihan diri memastikan keselamatan makanan, membina kepercayaan pelanggan, dan memenuhi standard piawaian katering profesional." },
+    ],
+    topics: [
+      {
+        id: "1-1-1",
+        title: "1.1.1 — Definisi Barista",
+        // [SUNTING] Gantikan teks di dalam tag <p> dengan nota sebenar anda
+        content: `
+          <p>Barista berasal dari perkataan Itali yang bermaksud <strong>"bartender"</strong> atau pekerja kaunter bar. Dalam konteks kopi moden, barista merujuk kepada <strong>profesional yang terlatih</strong> dalam seni menyediakan minuman berasaskan espresso.</p>
+          <div class="mt-3 p-3 bg-latte-cream border-l-4 border-mocha rounded-r-lg text-sm">
+            <strong>🎯 Poin Utama:</strong> Barista bukan sekadar membuat kopi — mereka adalah pengukur rasa, saintis suhu, dan perkhidmatan pelanggan dalam satu.
+          </div>`,
+        info: [
+          { icon: "book-open", label: "Asal Kata", value: "Bahasa Itali — 'bartender'" },
+          { icon: "star", label: "Fokus Kemahiran", value: "Espresso & Milk Texturing" },
+          { icon: "award", label: "Standard", value: "SCA (Specialty Coffee Association)" },
+        ]
+      },
+      {
+        id: "1-1-2",
+        title: "1.1.2 — Deskripsi Tugas Barista",
+        content: `<p>Barista bertanggungjawab terhadap keseluruhan pengalaman kopi pelanggan — dari biji kopi sehingga cawan yang dihidangkan.</p>`,
+        table: {
+          headers: ["Kategori Tugas", "Butiran"],
+          // [SUNTING] Tambah atau ubah baris jadual tugas barista
+          rows: [
+            ["Teknikal", "Mengisar kopi, mengekstrak espresso, tekstur susu, latte art"],
+            ["Kebersihan", "Membersihkan mesin, kaunter, dan peralatan mengikut SOP"],
+            ["Servis", "Menyambut pelanggan, mengambil pesanan, menyajikan minuman"],
+            ["Pengurusan", "Memantau stok bahan, semak tarikh luput, laporan harian"],
+          ]
+        }
+      },
+      {
+        id: "1-1-3",
+        title: "1.1.3 — Konsep Perkhidmatan Kaunter",
+        content: `<p>Perkhidmatan kaunter ialah mod interaksi langsung antara barista dan pelanggan. Kaunter berfungsi sebagai <strong>titik pertama kontak</strong> dalam pengalaman pelanggan.</p>`,
+        info: [
+          { icon: "layout", label: "Susunan Kaunter", value: "Aliran kerja kiri ke kanan / simetri" },
+          { icon: "eye", label: "Kebersihan Visual", value: "Tiada peralatan berserabut di permukaan" },
+          { icon: "smile", label: "Interaksi", value: "Kontak mata, bahasa isyarat, senyuman" },
+        ]
+      },
+      {
+        id: "1-1-4",
+        title: "1.1.4 — Kebersihan dan Penampilan Diri",
+        content: `<p>Penampilan profesional barista mencerminkan imej syarikat dan memastikan piawaian keselamatan makanan dipatuhi.</p>`,
+        table: {
+          headers: ["Aspek", "Keperluan Minimum"],
+          // [SUNTING] Piawaian penampilan diri barista
+          rows: [
+            ["Rambut", "Diikat atau ditutup dengan hairnet / topi barista"],
+            ["Pakaian", "Apron bersih, uniform kemas, tiada aksesori berbahaya"],
+            ["Tangan", "Kuku pendek, tiada cat kuku, basuh tangan sebelum bekerja"],
+            ["Bauan", "Tiada minyak wangi kuat, tiada merokok semasa tugas"],
+            ["Kesihatan", "Tidak masuk kerja jika sakit berjangkit"],
+          ]
+        }
+      },
+    ]
+  },
+
+  // ───────────────────────────────────────────────────────
+  // BAB 2: PENGENALAN KOPI DAN PERALATAN BARISTA
+  // ───────────────────────────────────────────────────────
+  {
+    id: "bab2",
+    title: "Bab 2 — Pengenalan Kopi & Peralatan",
+    icon: "coffee",
+    color: "bg-amber-900",
+    flashcards: [
+      // [SUNTING] Soalan & jawapan kuiz Bab 2
+      { q: "Apakah perbezaan utama antara Arabica dan Robusta?", a: "Arabica: rasa halus, masam lembut, kafein rendah, tumbuh di dataran tinggi. Robusta: rasa pahit kuat, kafein tinggi, lebih tahan penyakit, tumbuh di dataran rendah." },
+      { q: "Apakah tiga tahap panggang biji kopi?", a: "① Light Roast – rasa masam/fruity, warna coklat muda ② Medium Roast – seimbang, warna coklat sederhana ③ Dark Roast – pahit, berminyak, warna coklat gelap/hitam" },
+      { q: "Fungsi tamper dalam penyediaan espresso?", a: "Tamper digunakan untuk memadatkan (tamp) kopi kisar di dalam portafilter secara sekata bagi memastikan pengekstrakan espresso yang seragam." },
+      { q: "Apakah fungsi knock box?", a: "Knock box digunakan untuk membuang kopi kisar bekas (puck) dari portafilter selepas pengekstrakan espresso selesai." },
+    ],
+    topics: [
+      {
+        id: "2-1",
+        title: "2.1 — Jenis-jenis Biji Kopi",
+        content: `<p>Terdapat empat spesies utama biji kopi yang digunakan secara komersial. Setiap spesies mempunyai profil rasa, asal usul, dan penggunaan yang berbeza.</p>`,
+        table: {
+          headers: ["Jenis", "Asal", "Profil Rasa", "Kandungan Kafein"],
+          // [SUNTING] Data jenis biji kopi
+          rows: [
+            ["Arabica", "Ethiopia / Amerika Latin", "Halus, manis, masam lembut", "Rendah (~1.2%)"],
+            ["Robusta", "Afrika Barat / Asia Tenggara", "Pahit kuat, earthy, nutty", "Tinggi (~2.7%)"],
+            ["Liberica", "Liberia / Malaysia (Excelsa)", "Smoky, floral, fruity", "Sederhana"],
+            ["Blended Beans", "Pelbagai asal", "Profil rasa disesuaikan", "Bergantung campuran"],
+          ]
+        }
+      },
+      {
+        id: "2-2",
+        title: "2.2 — Tahap Panggang Biji Kopi",
+        content: `<p>Proses pemanggang (<em>roasting</em>) mengubah biji kopi hijau kepada biji kopi yang siap diguna. Suhu dan masa panggang menentukan profil rasa akhir.</p>`,
+        table: {
+          headers: ["Tahap Panggang", "Suhu (°C)", "Warna", "Profil Rasa", "Penggunaan"],
+          // [SUNTING] Data tahap panggang kopi
+          rows: [
+            ["Light Roast", "180–205°C", "Coklat muda", "Masam, fruity, bunga, floral", "Pour over, cold brew"],
+            ["Medium Roast", "210–220°C", "Coklat sederhana", "Seimbang, manis, karamel", "Espresso, drip coffee"],
+            ["Dark Roast", "225–245°C", "Coklat gelap/berminyak", "Pahit, smoky, coklat gelap", "Espresso kuat, cold brew"],
+          ]
+        }
+      },
+      {
+        id: "2-3-1",
+        title: "2.3.1 — Biji Kopi / Whole Bean",
+        content: `<p>Biji kopi keseluruhan (<em>whole bean</em>) memberikan kesegaran maksimum kerana oksidasi berlaku perlahan. Biji kopi perlu digiling tepat sebelum diseduh.</p>`,
+        info: [
+          { icon: "shield-check", label: "Kelebihan", value: "Rasa lebih segar, aroma terpelihara" },
+          { icon: "clock", label: "Jangka Hayat", value: "2–4 minggu selepas pembukaan" },
+          { icon: "package", label: "Penyimpanan", value: "Bekas kedap udara, suhu bilik, gelap" },
+        ]
+      },
+      {
+        id: "2-3-2",
+        title: "2.3.2 — Kopi Kisar / Ground Coffee",
+        content: `<p>Kopi kisar adalah biji kopi yang telah dikisar kepada saiz tertentu. Saiz kisaran (<em>grind size</em>) sangat mempengaruhi rasa minuman akhir.</p>`,
+        table: {
+          headers: ["Saiz Kisaran", "Tekstur", "Kaedah Seduhan"],
+          // [SUNTING] Data saiz kisaran kopi
+          rows: [
+            ["Kasar (Coarse)", "Seperti garam kasar", "French Press, Cold Brew"],
+            ["Sederhana (Medium)", "Seperti pasir biasa", "Drip, Pour Over, AeroPress"],
+            ["Halus (Fine)", "Seperti tepung semolina", "Espresso, Moka Pot"],
+            ["Sangat Halus (Extra Fine)", "Seperti tepung", "Turkish Coffee"],
+          ]
+        }
+      },
+      {
+        id: "2-4-1",
+        title: "2.4.1 — Peralatan Pengisar Kopi",
+        content: `<p>Pengisar kopi adalah peralatan terpenting dalam penyediaan minuman kopi berkualiti. Kisaran sekata menghasilkan pengekstrakan yang konsisten.</p>`,
+        table: {
+          headers: ["Jenis Pengisar", "Ciri Utama", "Kegunaan"],
+          // [SUNTING] Data jenis pengisar kopi
+          rows: [
+            ["Manual Grinder (Hand Grinder)", "Dioperasi tangan, mudah alih, bur grinder", "Rumah / kopi perjalanan"],
+            ["Grinder Machine dengan Doser", "Automatik, ada ruang simpan kopi kisar (doser)", "Kedai kopi volume tinggi"],
+            ["On-Demand Grinder Machine", "Giling terus ke portafilter, tiada doser, lebih segar", "Kedai kopi butik, specialty coffee"],
+          ]
+        }
+      },
+      {
+        id: "2-4-2",
+        title: "2.4.2 — Peralatan Penyediaan Espresso",
+        content: `<p>Satu set peralatan espresso lengkap terdiri daripada beberapa komponen penting yang bekerja bersama untuk menghasilkan espresso berkualiti tinggi.</p>`,
+        table: {
+          headers: ["Peralatan", "Fungsi"],
+          // [SUNTING] Data peralatan espresso
+          rows: [
+            ["Espresso Machine", "Mengepam air panas bertekanan (~9 bar) melalui kopi kisar untuk mengekstrak espresso"],
+            ["Portafilter", "Pemegang penapis kopi; tempat kopi kisar dipadatkan dan dimasukkan ke mesin"],
+            ["Coffee Tamper", "Alat memadatkan kopi kisar dalam portafilter secara sekata dengan tekanan ~15 kg"],
+            ["Tamper Mat", "Alas getah untuk melindungi kaunter semasa proses tamping"],
+            ["Knock Box", "Bekas untuk membuang puck (kopi bekas) selepas pengekstrakan"],
+            ["Penimbang Digital", "Menimbang dos kopi dan berat espresso untuk konsistensi"],
+            ["Termometer", "Memantau suhu susu semasa proses steaming (~60–65°C)"],
+          ]
+        }
+      },
+      {
+        id: "2-4-3",
+        title: "2.4.3 — Jenis-jenis Cawan dan Gelas",
+        content: `<p>Pemilihan cawan/gelas yang betul meningkatkan pengalaman visual dan terma minuman.</p>`,
+        table: {
+          headers: ["Jenis", "Kapasiti", "Kegunaan"],
+          // [SUNTING] Data cawan dan gelas
+          rows: [
+            ["Demitasse", "60–90 ml", "Espresso, ristretto, lungo"],
+            ["Cappuccino Cup", "150–180 ml", "Cappuccino, cortado"],
+            ["Latte Glass", "250–350 ml", "Latte, flat white, americano panas"],
+          ]
+        }
+      },
+    ]
+  },
+
+  // ───────────────────────────────────────────────────────
+  // BAB 3: SERVIS BARISTA
+  // ───────────────────────────────────────────────────────
+  {
+    id: "bab3",
+    title: "Bab 3 — Servis Barista",
+    icon: "zap",
+    color: "bg-orange-800",
+    flashcards: [
+      // [SUNTING] Soalan & jawapan kuiz Bab 3
+      { q: "Apakah 5 faktor yang mempengaruhi kualiti espresso?", a: "① Saiz kisaran kopi ② Jumlah kopi (dos) ③ Tekanan (9 bar) ④ Suhu air (90–96°C) ⑤ Tempoh ekstrakan (25–30 saat)" },
+      { q: "Apakah 3 lapisan/komponen espresso yang sempurna?", a: "① Crema – lapisan buih coklat keemasan di atas ② Body – bahagian tengah, coklat gelap ③ Heart – bahagian bawah, gelap pekat" },
+      { q: "Pada suhu berapakah susu ideal untuk milk texturing?", a: "Suhu ideal susu selepas steaming adalah 60–65°C. Melebihi 70°C akan merosakkan protein susu dan menghilangkan kemanisan semula jadi." },
+      { q: "Apakah perbezaan Pour Over dan French Press?", a: "Pour Over: air dituang perlahan melalui penapis kertas, kopi bersih & halus. French Press: kopi direndam dalam air, penapis tekan ke bawah, rasa lebih penuh & berminyak." },
+    ],
+    topics: [
+      {
+        id: "3-1-1",
+        title: "3.1.1 — Kesesuaian Saiz Kisaran Kopi",
+        content: `<p>Saiz kisaran menentukan kelajuan air melalui kopi dan rasa akhir minuman. Kisaran yang salah mengakibatkan espresso over-extracted (pahit) atau under-extracted (masam lemah).</p>`,
+        table: {
+          headers: ["Masalah", "Punca", "Penyelesaian"],
+          // [SUNTING] Jadual penyelesaian masalah kisaran
+          rows: [
+            ["Espresso terlalu pahit / gelap", "Kisaran terlalu halus / masa ekstrakan terlalu lama", "Laraskan lebih kasar atau kurangkan dos"],
+            ["Espresso terlalu masam / cair", "Kisaran terlalu kasar / masa ekstrakan terlalu singkat", "Laraskan lebih halus atau tambah dos"],
+            ["Aliran tidak sekata", "Tamping tidak rata", "Pastikan tamping tekanan serata ~15 kg"],
+          ]
+        }
+      },
+      {
+        id: "3-2-1",
+        title: "3.2.1 — Rasa Asas & Penilaian Aroma Kopi",
+        content: `<p>Penilaian sensori kopi melibatkan lima deria utama. Sebagai barista, kemahiran menilai rasa dan aroma adalah asas kualiti konsisten.</p>`,
+        table: {
+          headers: ["Rasa Asas", "Penerangan", "Contoh Kopi"],
+          // [SUNTING] Data rasa asas kopi
+          rows: [
+            ["Pahit (Bitter)", "Rasa akhir, dari kafein & melanoidin — normal dalam espresso", "Dark roast, robusta"],
+            ["Masam (Acidic/Sour)", "Rasa segar, dari asid organik — tanda light roast berkualiti", "Ethiopian Arabica, light roast"],
+            ["Manis (Sweet)", "Rasa semula jadi dari gula semasa pemanggangan", "Medium roast, Arabica Brazil"],
+            ["Aroma", "Wangian kopi — floral, nutty, smoky, fruity, herbal", "Bergantung asal & tahap panggang"],
+          ]
+        }
+      },
+      {
+        id: "3-3",
+        title: "3.3 — Penyediaan Coffee Brewing",
+        content: `
+          <p><strong>Coffee Brewing</strong> ialah proses mengekstrak sebatian rasa dari biji kopi kisar menggunakan air.</p>
+          <h4 class="font-bold mt-3 mb-2">Faktor Mempengaruhi Kualiti Brewing:</h4>`,
+        table: {
+          headers: ["Faktor", "Parameter Ideal"],
+          // [SUNTING] Parameter coffee brewing
+          rows: [
+            ["Nisbah Kopi:Air", "1:15 hingga 1:17 (1g kopi : 15–17ml air)"],
+            ["Saiz Kisaran", "Bergantung kaedah (kasar untuk French Press, medium untuk Pour Over)"],
+            ["Suhu Air", "90–96°C (jangan guna air mendidih 100°C)"],
+            ["Masa Brewing", "Pour Over: 2.5–4 minit | French Press: 4–5 minit"],
+            ["Kualiti Biji Kopi", "Biji segar, roast date < 4 minggu, storan betul"],
+          ]
+        },
+        steps: [
+          // [SUNTING] Prosedur Pour Over – gantikan dengan langkah tepat anda
+          "POUR OVER: Panaskan air hingga 93°C",
+          "Letakkan penapis kertas dalam dripper, bilas dengan air panas (pre-wet)",
+          "Tambah kopi kisar medium (contoh: 15g untuk 250ml air)",
+          "Mula dengan 'bloom' — tuang 30ml air, tunggu 30 saat untuk CO₂ keluar",
+          "Tuang air secara perlahan dalam gerakan bulatan kecil (gyrasi)",
+          "Siapkan dalam masa 2.5–4 minit",
+          "FRENCH PRESS: Tambah kopi kisar kasar (1:15) ke dalam French Press",
+          "Tuang air 93°C ke atas kopi, kacau sekali",
+          "Tutup dan biarkan rendam 4 minit",
+          "Tekan piston perlahan-lahan ke bawah, tuang dan hidang segera",
+        ]
+      },
+      {
+        id: "3-4",
+        title: "3.4 — Penyediaan Espresso",
+        content: `
+          <p><strong>Espresso</strong> ialah kaedah pengekstrakan kopi menggunakan tekanan air tinggi (~9 bar) melalui kopi kisar halus yang dipadatkan.</p>`,
+        info: [
+          { icon: "droplet", label: "Isipadu Espresso", value: "Single: 25–30ml | Double: 50–60ml" },
+          { icon: "timer", label: "Masa Ekstrakan", value: "25–30 saat" },
+          { icon: "thermometer", label: "Suhu Air", value: "90–96°C" },
+          { icon: "gauge", label: "Tekanan", value: "9 bar" },
+        ],
+        steps: [
+          // [SUNTING] Prosedur penyediaan espresso
+          "Pastikan mesin espresso dipanaskan sepenuhnya (flush grouphead)",
+          "Timbang dos kopi kisar (contoh: 18g untuk double espresso)",
+          "Kisar kopi ke dalam portafilter yang bersih dan kering",
+          "Ratakan permukaan kopi (distribusi) dengan jari atau distribution tool",
+          "Tamping dengan tekanan serata ~15 kg menggunakan tamper",
+          "Lap tepi portafilter dari sisa kopi",
+          "Pasang portafilter ke grouphead, tekan segera butang ekstrak",
+          "Pantau aliran: espresso mula mengalir dalam 5–8 saat, masa total 25–30 saat",
+          "Sasarkan berat espresso 36–40g (nisbah 1:2 dari dos kopi)",
+          "Bersihkan portafilter segera (knock puck, bilas)",
+        ]
+      },
+      {
+        id: "3-4-3",
+        title: "3.4.3 — Komponen Espresso",
+        content: `<p>Espresso berkualiti tinggi terdiri daripada tiga lapisan yang berbeza secara visual dan rasa.</p>`,
+        table: {
+          headers: ["Lapisan", "Penampilan", "Rasa / Fungsi"],
+          // [SUNTING] Data komponen espresso
+          rows: [
+            ["Crema", "Buih coklat keemasan, lapisan atas", "Rasa manis, aroma, penanda kualiti ekstrakan"],
+            ["Body", "Coklat gelap, bahagian tengah", "Rasa penuh, bitter-sweet, kekuatan espresso"],
+            ["Heart", "Hitam/coklat gelap, bahagian bawah", "Rasa pahit intens, asas kopi"],
+          ]
+        }
+      },
+      {
+        id: "3-5",
+        title: "3.5 — Penyediaan Milk Texturing",
+        content: `<p><strong>Milk texturing</strong> ialah proses memanaskan dan mengembangkan susu menggunakan steam wand untuk menghasilkan microfoam yang sesuai untuk latte art.</p>`,
+        info: [
+          { icon: "thermometer", label: "Suhu Sasaran", value: "60–65°C (max 70°C)" },
+          { icon: "droplets", label: "Tekstur Ideal", value: "Microfoam seperti cat tembok cair / silky" },
+          { icon: "wind", label: "Teknik Utama", value: "Aeration (masukkan udara) + Vortex (putaran)" },
+        ],
+        steps: [
+          // [SUNTING] Prosedur milk texturing
+          "Purge steam wand 1–2 saat untuk singkirkan air kondensasi",
+          "Isi jug susu segar sejuk (5°C) hingga paras bawah spout jug",
+          "Letakkan steam wand pada sudut ~30–45° di tepi jug",
+          "Turunkan jug supaya hujung steam wand berada 1–2mm di bawah permukaan susu",
+          "Buka injap stim sepenuhnya — fasa AERATION: dengarkan bunyi 'chhh' halus selama 2–3 saat",
+          "Naikkan jug sedikit (steam wand lebih dalam) untuk fasa VORTEX: putaran susu berlaku",
+          "Pantau suhu dengan tangan di luar jug — tutup stim apabila hampir tidak selesa dipegang (~55–60°C)",
+          "Tutup injap stim, keluarkan steam wand",
+          "Purge steam wand segera dan lap dengan kain bersih lembap",
+          "Hentak jug perlahan di kaunter (tapping) untuk pecahkan buih besar",
+          "Pusingkan susu dalam jug (swirling) untuk homogenkan tekstur",
+          "Gunakan segera sebelum buih terpisah",
+        ]
+      },
+      {
+        id: "3-6",
+        title: "3.6 — Latte Art",
+        content: `<p>Latte art ialah seni menuang susu bertekstur ke atas espresso untuk mencipta corak visual yang menarik. Ia memerlukan latihan konsisten.</p>`,
+        table: {
+          headers: ["Teknik", "Corak", "Tahap Kesukaran"],
+          // [SUNTING] Data teknik latte art
+          rows: [
+            ["Free Pour – Heart", "Hati bulat di tengah cawan", "Pemula ⭐"],
+            ["Free Pour – Rosetta", "Daun/pakis dengan garisan simetri", "Pertengahan ⭐⭐⭐"],
+            ["Free Pour – Tulip", "Petal bertindih 3–5 lapisan", "Pertengahan ⭐⭐"],
+            ["Etching / Drawing", "Lukis corak menggunakan tusuk gigi/latte pen", "Mana-mana tahap"],
+          ]
+        }
+      },
+      {
+        id: "3-7",
+        title: "3.7 — Minuman Berasaskan Espresso",
+        content: `<p>Empat minuman espresso klasik yang wajib dikuasai oleh setiap barista.</p>`,
+        table: {
+          headers: ["Minuman", "Komposisi", "Isipadu", "Cawan"],
+          // [SUNTING] Data minuman espresso
+          rows: [
+            ["Espresso", "Espresso sahaja", "25–30ml", "Demitasse 60ml"],
+            ["Americano", "Espresso + air panas (1:2 hingga 1:4)", "150–240ml", "Latte glass"],
+            ["Latte", "Espresso + susu tekstur + microfoam nipis", "250–350ml", "Latte glass"],
+            ["Cappuccino", "Espresso + susu sama banyak + foam tebal (~1cm)", "150–180ml", "Cappuccino cup"],
+          ]
+        }
+      },
+    ]
+  },
+
+  // ───────────────────────────────────────────────────────
+  // BAB 4: SERVIS BARISTA – MINUMAN LAIN
+  // ───────────────────────────────────────────────────────
+  {
+    id: "bab4",
+    title: "Bab 4 — Minuman Lain",
+    icon: "glass-water",
+    color: "bg-cyan-800",
+    flashcards: [
+      // [SUNTING] Soalan & jawapan kuiz Bab 4
+      { q: "Apakah perbezaan Ice Blended dan Frappe?", a: "Ice Blended: espresso/kopi + ais + susu diblender sehingga lembut. Frappe: kopi segera + ais + dikocok/blender — tekstur lebih berbuih dan ringan." },
+      { q: "Bagaimana menyediakan matcha latte yang baik?", a: "① Ayak serbuk matcha untuk elak ketulan ② Tambah sedikit air panas (tidak mendidih, ~80°C), kacau hingga paste ③ Tambah susu tekstur ④ Hidang panas atau atas ais" },
+    ],
+    topics: [
+      {
+        id: "4-1",
+        title: "4.1 — Minuman Berasaskan Espresso (Sejuk)",
+        content: `<p>Minuman espresso sejuk memerlukan teknik tambahan seperti pencairan ais dan pengukuran yang tepat untuk mengekalkan keseimbangan rasa.</p>`,
+        table: {
+          headers: ["Minuman", "Bahan Utama", "Prosedur Ringkas"],
+          // [SUNTING] Data minuman espresso sejuk
+          rows: [
+            ["Ice Blended Coffee", "Espresso, susu, ais, sirap (optional)", "Blend semua bahan sehingga tekstur creamy, hidang dalam gelas tinggi dengan whipped cream"],
+            ["Frappe", "Kopi (espresso/segera), ais, susu sejuk, gula", "Blend / kocok bersama ais sehingga berbuih, hidang dengan straw"],
+          ]
+        }
+      },
+      {
+        id: "4-2",
+        title: "4.2 — Minuman Bukan Berasaskan Espresso",
+        content: `<p>Minuman bukan kopi semakin popular di kafe moden. Barista perlu mahir menyediakan minuman alternatif berkualiti tinggi.</p>`,
+        table: {
+          headers: ["Minuman", "Bahan Asas", "Suhu Penyediaan", "Nota"],
+          // [SUNTING] Data minuman bukan espresso
+          rows: [
+            ["Teh (Panas/Sejuk)", "Daun teh / tea bag berkualiti", "Air 95°C (Hitam) / 80°C (Hijau)", "Rendam 2–4 minit, jangan terlampau lama"],
+            ["Matcha Latte", "Serbuk matcha grade culinary/ceremonial", "Air 80°C untuk paste", "Ayak matcha dahulu, buat paste, tambah susu"],
+            ["Coklat Panas", "Serbuk coklat / couverture coklat", "Susu panas 65–70°C", "Kacau / steam bersama susu untuk tekstur creamy"],
+            ["Minuman Berperisa", "Sirap perisa (vanilla, hazel, lavender dll.)", "Panas atau sejuk", "Tambah sirap 10–15ml ke minuman asas"],
+          ]
+        }
+      },
+    ]
+  },
+
+  // ───────────────────────────────────────────────────────
+  // BAB 5: PERKHIDMATAN PELANGGAN
+  // ───────────────────────────────────────────────────────
+  {
+    id: "bab5",
+    title: "Bab 5 — Perkhidmatan Pelanggan",
+    icon: "heart-handshake",
+    color: "bg-rose-800",
+    flashcards: [
+      // [SUNTING] Soalan & jawapan kuiz Bab 5
+      { q: "Apakah 4 langkah prosedur perkhidmatan pelanggan barista?", a: "① Mengambil pesanan (sambut, tanya, ulang balik) ② Menyediakan pesanan (ikut SOP, penimbang, masa) ③ Penyajian minuman (kemas, label, hidang dengan senyuman) ④ Pembayaran (semak, terima, berikan resit)" },
+      { q: "Bagaimana mengendalikan aduan pelanggan secara profesional?", a: "① Dengar tanpa potong ② Berterima kasih atas maklum balas ③ Minta maaf tanpa alasan ④ Tawarkan penyelesaian segera (ganti minuman) ⑤ Ikut-up untuk pastikan kepuasan" },
+    ],
+    topics: [
+      {
+        id: "5-1",
+        title: "5.1 — Persediaan Ruang Kerja Barista",
+        content: `<p>Ruang kerja yang bersih, teratur, dan lengkap adalah asas kepada servis berkualiti dan keselamatan di tempat kerja.</p>`,
+        table: {
+          headers: ["Area", "Checklist Persediaan"],
+          // [SUNTING] Checklist persediaan ruang kerja
+          rows: [
+            ["Bar Counter", "Bersih, kering, tiada noda; peralatan tersusun mengikut aliran kerja"],
+            ["Mesin Espresso", "Dipanaskan sepenuhnya, flush grouphead, portafilter dipasang"],
+            ["Pengisar", "Bersih, dosis dikalibrasi, biji kopi diisi secukupnya"],
+            ["Stok Bahan", "Susu sejuk (5°C), sirap, gula, cawan/gelas bersih, serbet"],
+            ["Workstation Sejuk", "Ais cukup, blender bersih, minuman sejuk disimpan betul"],
+          ]
+        }
+      },
+      {
+        id: "5-2",
+        title: "5.2 — Prosedur Perkhidmatan Pelanggan",
+        content: `<p>Prosedur perkhidmatan yang sistematik memastikan konsistensi dan kepuasan pelanggan.</p>`,
+        steps: [
+          // [SUNTING] Langkah-langkah prosedur servis pelanggan
+          "MENGAMBIL PESANAN: Sambut pelanggan dengan senyuman & bahasa badan mesra (kontak mata)",
+          "Tanya pesanan dengan jelas — gunakan menu visual / gambar jika perlu",
+          "Ulang pesanan semula kepada pelanggan untuk pengesahan",
+          "Catat pesanan pada order slip / POS system",
+          "MENYEDIAKAN PESANAN: Ikut SOP penyediaan mengikut jenis minuman",
+          "Gunakan penimbang untuk dos yang konsisten",
+          "Pantau masa ekstrakan espresso (25–30 saat)",
+          "PENYAJIAN MINUMAN: Pastikan cawan/gelas bersih dan pada suhu yang betul",
+          "Hidang dengan nesting saucer (untuk kopi panas) atau serbet",
+          "Sertakan sudu, straw atau aksesori yang bersesuaian",
+          "PEMBAYARAN: Semak jumlah dengan betul di POS",
+          "Terima bayaran, berikan baki dengan betul",
+          "Berikan resit dan ucapkan terima kasih",
+        ]
+      },
+      {
+        id: "5-3",
+        title: "5.3 — Pengendalian Situasi Perkhidmatan",
+        content: `<p>Barista perlu bersedia untuk mengendalikan pelbagai situasi pelanggan secara profesional, termasuk aduan, permintaan khas, dan keadaan tersibuk.</p>`,
+        table: {
+          headers: ["Situasi", "Tindakan Profesional"],
+          // [SUNTING] Jadual pengendalian situasi
+          rows: [
+            ["Pelanggan tidak puas dengan minuman", "Minta maaf, tanya punca, sediakan semula tanpa soal"],
+            ["Pesanan salah diberikan", "Akui kesilapan, ganti segera, tawarkan perkhidmatan lebih"],
+            ["Mesin rosak sewaktu peak hour", "Maklumkan segera kepada supervisor, tawarkan alternatif"],
+            ["Pelanggan OKU / keperluan khas", "Gunakan kad menu, pen & kertas, aplikasi komunikasi visual"],
+            ["Waktu sibuk / queue panjang", "Mohon bersabar, beri anggaran masa, utamakan kopi panas dahulu"],
+          ]
+        }
+      },
+    ]
+  },
+
+  // ───────────────────────────────────────────────────────
+  // BAB 6: KEBERSIHAN, PENYELENGGARAAN DAN KESELAMATAN
+  // ───────────────────────────────────────────────────────
+  {
+    id: "bab6",
+    title: "Bab 6 — Kebersihan, Penyelenggaraan & Keselamatan",
+    icon: "shield-check",
+    color: "bg-green-800",
+    flashcards: [
+      // [SUNTING] Soalan & jawapan kuiz Bab 6
+      { q: "Apakah prosedur backflush mesin espresso?", a: "① Pasang blind filter ke portafilter ② Tambah 1/4 sudu kecil sabun mesin kopi ③ Aktifkan kitaran backflush (10 saat on, 10 saat off) × 5 kali ④ Backflush air bersih 5 kali ⑤ Lap grouphead dengan sikat khusus" },
+      { q: "Apakah 3 jenis bahaya keselamatan di stesen barista?", a: "① Bahaya fizikal: permukaan panas (steam wand, cawan panas), lantai basah/licin ② Bahaya elektrik: peralatan elektrik berhampiran air ③ Bahaya kimia: cecair pembersih mesin kopi (alkali/asid)" },
+    ],
+    topics: [
+      {
+        id: "6-1",
+        title: "6.1 — Pembersihan & Penyelenggaraan",
+        content: `<p>Jadual pembersihan berkala adalah wajib untuk memastikan kualiti kopi, keselamatan makanan, dan jangka hayat peralatan yang lebih panjang.</p>`,
+        table: {
+          headers: ["Peralatan", "Frekuensi", "Prosedur Ringkas"],
+          // [SUNTING] Jadual pembersihan peralatan
+          rows: [
+            ["Mesin Espresso (Grouphead)", "Setiap sesi / harian", "Flush, backflush dengan sabun mesin, sikat portafilter basket"],
+            ["Mesin Espresso (Drip Tray)", "Harian", "Tanggalkan, buang air, basuh dengan sabun, keringkan"],
+            ["Steam Wand", "Setiap penggunaan", "Purge, lap dengan kain lembap bersih"],
+            ["Mesin Pengisar", "Mingguan", "Vakum sisa kopi, bersihkan bur dan hopper dengan sikat"],
+            ["Portafilter & Basket", "Harian / setiap sesi", "Rendam dalam air panas, sikat halus, keringkan betul-betul"],
+            ["Ruang Kerja & Kaunter", "Berterusan semasa tugas", "Lap dengan kain bersih setiap 30 minit atau selepas tumpahan"],
+          ]
+        }
+      },
+      {
+        id: "6-2",
+        title: "6.2 — Prosedur Keselamatan di Tempat Kerja",
+        content: `<p>Keselamatan adalah keutamaan mutlak. Semua barista mesti memahami dan mengamalkan prosedur keselamatan setiap hari.</p>`,
+        table: {
+          headers: ["Jenis Bahaya", "Contoh", "Langkah Pencegahan"],
+          // [SUNTING] Data keselamatan tempat kerja
+          rows: [
+            ["Luka bakar / melecur", "Steam wand, cawan panas, air mendidih", "Gunakan oven glove / kain tebal; jangan arahkan steam wand ke orang"],
+            ["Jatuh / tergelincir", "Lantai basah, tumpahan air", "Letak tanda wet floor segera, bersihkan serta-merta"],
+            ["Luka terpotong", "Pemecahan kaca / cawan", "Pegang cawan betul; simpan kaca pecah dalam bekas khusus"],
+            ["Bahaya elektrik", "Peralatan elektrik berhampiran air", "Jangan pegang plug dengan tangan basah; laporkan wayar rosak"],
+            ["Alahan / keracunan makanan", "Susu luput, bahan tercemar", "Semak tarikh luput setiap hari; label bahan dengan betul"],
+            ["Ergonomik", "Berdiri lama, pergerakan berulang", "Rehat kaki berkala, stretching, guna anti-fatigue mat"],
+          ]
+        },
+        steps: [
+          // [SUNTING] Prosedur kecemasan
+          "Dalam kes KEBAKARAN: Tekan butang penggera, panggil bantuan, gunakan APAR (pemadam api ringan) jika selamat",
+          "Dalam kes LUKA BAKAR: Sejukkan bawah air sejuk mengalir 10 minit, tutup dengan pembalut steril, dapatkan rawatan",
+          "Dalam kes TUMPAHAN BAHAN KIMIA: Bilas dengan air banyak, rujuk MSDS bahan, dapatkan rawatan perubatan",
+          "Laporkan SEMUA kemalangan walaupun kecil kepada penyelia — isi borang kemalangan",
+        ]
+      },
+    ]
+  }
+
+]; // ═══ TAMAT DATA KURIKULUM ═══
+
+
+// ═══════════════════════════════════════════════════════════════
+//  PROGRESS MANAGEMENT (localStorage)
+// ═══════════════════════════════════════════════════════════════
+
+const STORAGE_KEY = 'barista_progress_v1';
+
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function saveProgress(p) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+}
+
+function markTopic(topicId, done) {
+  const p = loadProgress();
+  if (done) p[topicId] = true;
+  else delete p[topicId];
+  saveProgress(p);
+  updateAllProgress();
+}
+
+function isTopicDone(topicId) { return !!loadProgress()[topicId]; }
+
+function totalTopics() { return curriculum.reduce((acc, c) => acc + c.topics.length, 0); }
+
+function doneTopics() {
+  const p = loadProgress();
+  return curriculum.reduce((acc, c) => acc + c.topics.filter(t => p[t.id]).length, 0);
+}
+
+function chapterDone(chapterId) {
+  const ch = curriculum.find(c => c.id === chapterId);
+  if (!ch) return 0;
+  const p = loadProgress();
+  return ch.topics.filter(t => p[t.id]).length;
+}
+
+function updateAllProgress() {
+  const done = doneTopics();
+  const total = totalTopics();
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  document.getElementById('progressBadge').textContent = pct + '%';
+  document.getElementById('overallProgressBar').style.width = pct + '%';
+
+  // Update topic complete buttons
+  curriculum.forEach(ch => {
+    ch.topics.forEach(t => {
+      const btn = document.getElementById('btn-done-' + t.id);
+      if (btn) {
+        const done = isTopicDone(t.id);
+        btn.textContent = done ? '✓ Selesai' : 'Tandakan Selesai';
+        btn.className = done
+          ? 'px-4 py-2 rounded-lg text-sm font-semibold badge-done flex items-center gap-2'
+          : 'px-4 py-2 rounded-lg text-sm font-semibold badge-todo flex items-center gap-2 cursor-pointer hover:opacity-80';
+      }
+    });
+
+    // Update chapter progress bar
+    const bar = document.getElementById('chbar-' + ch.id);
+    const lbl = document.getElementById('chpct-' + ch.id);
+    if (bar && lbl) {
+      const pct2 = ch.topics.length ? Math.round((chapterDone(ch.id) / ch.topics.length) * 100) : 0;
+      bar.style.width = pct2 + '%';
+      lbl.textContent = pct2 + '%';
+    }
+  });
+
+  // Refresh chapter overview cards
+  renderChapterOverview();
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  HTML BUILDERS
+// ═══════════════════════════════════════════════════════════════
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/** Render info cards row */
+function renderInfoCards(infoArr) {
+  if (!infoArr || !infoArr.length) return '';
+  return `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+    ${infoArr.map(i => `
+      <div class="rounded-xl bg-white border border-latte p-3 flex items-start gap-3">
+        <span class="w-8 h-8 rounded-full bg-latte-cream flex items-center justify-center flex-shrink-0">
+          <i data-lucide="${i.icon}" class="w-4 h-4 text-mocha"></i>
+        </span>
+        <div>
+          <div class="text-xs text-mocha font-semibold uppercase tracking-wide">${escapeHtml(i.label)}</div>
+          <div class="text-sm text-espresso font-medium">${escapeHtml(i.value)}</div>
+        </div>
+      </div>`).join('')}
+  </div>`;
+}
+
+/** Render table */
+function renderTable(table) {
+  if (!table) return '';
+  return `<div class="overflow-x-auto rounded-xl border border-latte mb-4">
+    <table class="w-full text-sm border-collapse">
+      <thead class="bg-espresso text-latte-cream">
+        <tr>${table.headers.map(h => `<th class="px-4 py-3 text-left font-semibold">${escapeHtml(h)}</th>`).join('')}</tr>
+      </thead>
+      <tbody>
+        ${table.rows.map((row, ri) => `
+          <tr class="${ri % 2 === 0 ? 'bg-white' : 'bg-latte-cream'}">
+            ${row.map(cell => `<td class="px-4 py-3 text-espresso border-t border-latte">${escapeHtml(cell)}</td>`).join('')}
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+/** Render step list */
+function renderSteps(steps) {
+  if (!steps || !steps.length) return '';
+  return `<div class="mb-4">
+    <div class="font-semibold text-espresso mb-2 flex items-center gap-2">
+      <i data-lucide="list-ordered" class="w-4 h-4 text-mocha"></i> Langkah Prosedur
+    </div>
+    <ol class="space-y-2" style="counter-reset: step-counter;">
+      ${steps.map(s => `
+        <li class="step-item flex items-start text-sm text-espresso leading-relaxed">
+          <span>${escapeHtml(s)}</span>
+        </li>`).join('')}
+    </ol>
+  </div>`;
+}
+
+/** Render flashcard quiz for a chapter */
+function renderFlashcards(chapter) {
+  if (!chapter.flashcards || !chapter.flashcards.length) return '';
+  const cards = chapter.flashcards.map((fc, i) => `
+    <div class="card-scene w-full" style="height:160px;" onclick="flipCard('${chapter.id}-fc-${i}')">
+      <div id="${chapter.id}-fc-${i}" class="card-inner w-full h-full cursor-pointer select-none">
+        <!-- Front -->
+        <div class="card-face absolute inset-0 rounded-xl bg-espresso text-latte-cream flex flex-col items-center justify-center p-4 text-center">
+          <i data-lucide="help-circle" class="w-6 h-6 text-latte mb-2"></i>
+          <p class="text-sm font-semibold">${escapeHtml(fc.q)}</p>
+          <p class="text-xs text-latte mt-2 opacity-60">Ketik untuk lihat jawapan</p>
+        </div>
+        <!-- Back -->
+        <div class="card-face card-back absolute inset-0 rounded-xl bg-mocha text-latte-cream flex flex-col items-center justify-center p-4 text-center">
+          <i data-lucide="check-circle" class="w-6 h-6 text-latte mb-2"></i>
+          <p class="text-sm">${escapeHtml(fc.a)}</p>
+        </div>
+      </div>
+    </div>`).join('');
+
+  return `
+    <div class="mt-6 rounded-2xl border-2 border-latte p-5 bg-white">
+      <h3 class="text-base font-bold text-espresso mb-1 flex items-center gap-2">
+        <i data-lucide="layers" class="w-5 h-5 text-mocha"></i>
+        Kad Imbas (Flashcard) — ${escapeHtml(chapter.title)}
+      </h3>
+      <p class="text-xs text-mocha mb-4">Ketik setiap kad untuk mendedahkan jawapan. Latih pemahaman visual anda!</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">${cards}</div>
+    </div>`;
+}
+
+/** Build full topic section HTML */
+function buildTopicSection(topic, chapter) {
+  return `
+    <section id="section-${topic.id}" class="content-section p-6 max-w-4xl mx-auto">
+      <!-- Breadcrumb -->
+      <div class="flex items-center gap-2 text-xs text-mocha mb-4">
+        <button onclick="showSection('home')" class="hover:text-espresso transition">Laman Utama</button>
+        <i data-lucide="chevron-right" class="w-3 h-3"></i>
+        <span class="text-espresso font-medium">${escapeHtml(chapter.title.replace(/Bab \d+ — /, ''))}</span>
+        <i data-lucide="chevron-right" class="w-3 h-3"></i>
+        <span class="text-espresso font-semibold">${escapeHtml(topic.title)}</span>
+      </div>
+
+      <!-- Topic header -->
+      <div class="rounded-2xl bg-espresso text-latte-cream p-5 mb-5 flex items-start gap-4">
+        <div class="w-12 h-12 ${chapter.color} rounded-xl flex items-center justify-center flex-shrink-0">
+          <i data-lucide="${chapter.icon}" class="w-6 h-6 text-white"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <h1 class="text-lg sm:text-xl font-bold text-latte-light leading-tight">${escapeHtml(topic.title)}</h1>
+          <p class="text-xs text-latte opacity-70 mt-0.5">${escapeHtml(chapter.title)}</p>
+        </div>
+        <!-- Done button -->
+        <button id="btn-done-${topic.id}" onclick="toggleTopicDone('${topic.id}')"
+          class="px-4 py-2 rounded-lg text-sm font-semibold badge-todo flex items-center gap-2 cursor-pointer hover:opacity-80 flex-shrink-0">
+          Tandakan Selesai
+        </button>
+      </div>
+
+      <!-- Chapter progress bar -->
+      <div class="rounded-xl bg-white border border-latte p-4 mb-5">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs font-semibold text-mocha uppercase tracking-wide">Kemajuan Bab</span>
+          <span id="chpct-${chapter.id}" class="text-xs font-bold text-espresso">0%</span>
+        </div>
+        <div class="h-2 bg-latte-cream rounded-full overflow-hidden">
+          <div id="chbar-${chapter.id}" class="h-2 bg-mocha rounded-full progress-fill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="rounded-xl bg-white border border-latte p-5 mb-4 prose-content text-sm leading-relaxed text-espresso">
+        ${topic.content || ''}
+        ${renderInfoCards(topic.info)}
+        ${renderTable(topic.table)}
+        ${renderSteps(topic.steps)}
+      </div>
+
+      <!-- Navigation buttons -->
+      <div class="flex gap-3 flex-wrap" id="nav-btn-${topic.id}"></div>
+
+      <!-- Flashcards at chapter end (show for last topic in chapter) -->
+      <div id="fc-container-${topic.id}"></div>
+    </section>`;
+}
+
+/** Render chapter overview cards on home page */
+function renderChapterOverview() {
+  const container = document.getElementById('chapterOverview');
+  if (!container) return;
+  container.innerHTML = curriculum.map(ch => {
+    const done = chapterDone(ch.id);
+    const total = ch.topics.length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    return `
+      <button onclick="showFirstTopicOfChapter('${ch.id}')"
+        class="rounded-xl ${ch.color} text-white p-4 text-left hover:opacity-90 transition shadow-sm">
+        <div class="flex items-start justify-between mb-3">
+          <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+            <i data-lucide="${ch.icon}" class="w-5 h-5 text-white"></i>
+          </div>
+          <span class="text-xs font-bold bg-white/20 rounded-full px-2 py-0.5">${done}/${total}</span>
+        </div>
+        <h3 class="font-bold text-sm leading-snug mb-2">${escapeHtml(ch.title)}</h3>
+        <div class="h-1.5 bg-white/30 rounded-full overflow-hidden">
+          <div class="h-1.5 bg-white rounded-full progress-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="text-xs mt-1 opacity-70">${pct}% selesai</div>
+      </button>`;
+  }).join('');
+  lucide.createIcons();
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  SIDEBAR NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+
+function buildSidebar() {
+  const nav = document.getElementById('sidebarNav');
+  nav.innerHTML = `
+    <button onclick="showSection('home')"
+      class="nav-item w-full flex items-center gap-3 px-4 py-3 text-sm text-latte-cream hover:bg-mocha/40 transition" id="nav-home">
+      <i data-lucide="home" class="w-4 h-4 flex-shrink-0 text-latte"></i>
+      <span class="sidebar-text">Laman Utama</span>
+    </button>
+    ${curriculum.map(ch => `
+      <div class="border-t border-mocha/30">
+        <!-- Chapter accordion header -->
+        <button onclick="toggleChapter('${ch.id}')"
+          class="w-full flex items-center gap-3 px-4 py-3 text-sm text-latte-cream hover:bg-mocha/40 transition">
+          <i data-lucide="${ch.icon}" class="w-4 h-4 flex-shrink-0 text-latte"></i>
+          <span class="sidebar-text flex-1 text-left font-semibold text-xs leading-tight">${escapeHtml(ch.title)}</span>
+          <i data-lucide="chevron-down" id="chevron-${ch.id}" class="w-3 h-3 text-latte sidebar-text transition-transform flex-shrink-0"></i>
+        </button>
+        <!-- Topic list -->
+        <div class="chapter-items" id="chapter-items-${ch.id}">
+          ${ch.topics.map(t => `
+            <button onclick="showSection('${t.id}')"
+              id="nav-${t.id}"
+              class="nav-item w-full flex items-center gap-2 pl-9 pr-4 py-2 text-xs text-latte hover:bg-mocha/40 transition text-left sidebar-text">
+              <i data-lucide="dot" class="w-3 h-3 text-latte/50 flex-shrink-0"></i>
+              <span class="leading-tight">${escapeHtml(t.title)}</span>
+            </button>`).join('')}
+        </div>
+      </div>`).join('')}`;
+  lucide.createIcons();
+}
+
+function toggleChapter(chId) {
+  const items = document.getElementById('chapter-items-' + chId);
+  const chevron = document.getElementById('chevron-' + chId);
+  if (!items) return;
+  const isOpen = items.classList.contains('open');
+  // Close all chapters first
+  document.querySelectorAll('.chapter-items').forEach(el => el.classList.remove('open'));
+  document.querySelectorAll('[id^="chevron-"]').forEach(el => el.style.transform = '');
+  if (!isOpen) {
+    items.classList.add('open');
+    if (chevron) chevron.style.transform = 'rotate(180deg)';
+  }
+}
+
+function showFirstTopicOfChapter(chId) {
+  const ch = curriculum.find(c => c.id === chId);
+  if (ch && ch.topics.length) {
+    showSection(ch.topics[0].id);
+    toggleChapter(chId);
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  SECTION NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+
+let currentSection = 'home';
+
+function showSection(id) {
+  document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+  const sec = document.getElementById('section-' + id);
+  if (sec) { sec.classList.add('active'); }
+
+  const navBtn = document.getElementById('nav-' + id);
+  if (navBtn) navBtn.classList.add('active');
+  if (id === 'home') {
+    const homeBtn = document.getElementById('nav-home');
+    if (homeBtn) homeBtn.classList.add('active');
+  }
+
+  currentSection = id;
+  document.getElementById('mainContent').scrollTop = 0;
+  lucide.createIcons();
+  updateAllProgress();
+}
+
+function toggleTopicDone(topicId) {
+  const done = isTopicDone(topicId);
+  markTopic(topicId, !done);
+  lucide.createIcons();
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  BUILD DYNAMIC TOPIC SECTIONS
+// ═══════════════════════════════════════════════════════════════
+
+function buildTopicSections() {
+  const container = document.getElementById('topicSections');
+  let html = '';
+
+  curriculum.forEach(chapter => {
+    chapter.topics.forEach((topic, idx) => {
+      html += buildTopicSection(topic, chapter);
+    });
+  });
+
+  container.innerHTML = html;
+
+  // Add nav buttons and flashcards per topic
+  curriculum.forEach(chapter => {
+    chapter.topics.forEach((topic, idx) => {
+      const navContainer = document.getElementById('nav-btn-' + topic.id);
+      if (!navContainer) return;
+
+      let navHtml = '';
+      if (idx > 0) {
+        const prev = chapter.topics[idx - 1];
+        navHtml += `<button onclick="showSection('${prev.id}')" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-latte text-espresso text-sm font-semibold hover:bg-mocha hover:text-latte-cream transition">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i> Sebelumnya
+        </button>`;
+      }
+      if (idx < chapter.topics.length - 1) {
+        const next = chapter.topics[idx + 1];
+        navHtml += `<button onclick="showSection('${next.id}')" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-espresso text-latte-cream text-sm font-semibold hover:bg-mocha transition">
+          Seterusnya <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>`;
+      }
+      navContainer.innerHTML = navHtml;
+
+      // Flashcards only on last topic of each chapter
+      if (idx === chapter.topics.length - 1) {
+        const fcContainer = document.getElementById('fc-container-' + topic.id);
+        if (fcContainer) fcContainer.innerHTML = renderFlashcards(chapter);
+      }
+    });
+  });
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  FLASHCARD FLIP
+// ═══════════════════════════════════════════════════════════════
+
+function flipCard(cardId) {
+  const card = document.getElementById(cardId);
+  if (card) card.classList.toggle('flipped');
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  SEARCH
+// ═══════════════════════════════════════════════════════════════
+
+function performSearch(query) {
+  if (!query.trim()) {
+    showSection(currentSection === 'search' ? 'home' : currentSection);
+    return;
+  }
+
+  const q = query.toLowerCase();
+  const results = [];
+
+  curriculum.forEach(chapter => {
+    chapter.topics.forEach(topic => {
+      const text = (topic.title + ' ' + (topic.content || '') + ' ' +
+        (topic.table ? topic.table.rows.map(r => r.join(' ')).join(' ') : '') + ' ' +
+        (topic.steps ? topic.steps.join(' ') : '') + ' ' +
+        (topic.info ? topic.info.map(i => i.label + ' ' + i.value).join(' ') : '')).toLowerCase();
+
+      if (text.includes(q)) {
+        // Extract snippet
+        const plainText = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+        const idx2 = plainText.indexOf(q);
+        const start = Math.max(0, idx2 - 60);
+        const snippet = '…' + plainText.slice(start, start + 180) + '…';
+        results.push({ chapter, topic, snippet });
+      }
+    });
+  });
+
+  const container = document.getElementById('searchResults');
+  if (!results.length) {
+    container.innerHTML = `<div class="text-center py-12 text-mocha">
+      <i data-lucide="search-x" class="w-12 h-12 mx-auto mb-3 opacity-40"></i>
+      <p class="font-semibold">Tiada hasil dijumpai untuk "<strong>${escapeHtml(query)}</strong>"</p>
+      <p class="text-sm mt-1 opacity-60">Cuba kata kunci lain seperti: espresso, latte, tamper, arabica…</p>
+    </div>`;
+  } else {
+    container.innerHTML = results.map(r => {
+      const highlighted = r.snippet.replace(new RegExp(escapeHtml(query), 'gi'), m => `<mark>${m}</mark>`);
+      return `
+        <div class="rounded-xl bg-white border border-latte p-4 hover:border-mocha transition cursor-pointer"
+          onclick="showSection('${r.topic.id}')">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 ${r.chapter.color} rounded-lg flex items-center justify-center flex-shrink-0">
+              <i data-lucide="${r.chapter.icon}" class="w-4 h-4 text-white"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-xs text-mocha font-medium mb-0.5">${escapeHtml(r.chapter.title)}</div>
+              <div class="font-semibold text-espresso text-sm">${escapeHtml(r.topic.title)}</div>
+              <p class="text-xs text-mocha mt-1 leading-relaxed">${highlighted}</p>
+            </div>
+            <i data-lucide="arrow-right" class="w-4 h-4 text-mocha flex-shrink-0 mt-1"></i>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // Show search section
+  document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
+  document.getElementById('section-search').classList.add('active');
+  currentSection = 'search';
+  lucide.createIcons();
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  SIDEBAR TOGGLE
+// ═══════════════════════════════════════════════════════════════
+
+document.getElementById('toggleSidebar').addEventListener('click', () => {
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.toggle('collapsed');
+  if (sidebar.classList.contains('collapsed')) {
+    sidebar.style.minWidth = '64px';
+    sidebar.style.width = '64px';
+  } else {
+    sidebar.style.minWidth = '280px';
+    sidebar.style.width = '280px';
+  }
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+//  RESET PROGRESS
+// ═══════════════════════════════════════════════════════════════
+
+document.getElementById('resetProgress').addEventListener('click', () => {
+  if (confirm('Set semula semua kemajuan? Tindakan ini tidak boleh dibatalkan.')) {
+    localStorage.removeItem(STORAGE_KEY);
+    updateAllProgress();
+  }
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+//  SEARCH INPUT
+// ═══════════════════════════════════════════════════════════════
+
+let searchTimeout;
+document.getElementById('searchInput').addEventListener('input', e => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => performSearch(e.target.value), 300);
+});
+
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    e.target.value = '';
+    showSection('home');
+  }
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════
+
+document.addEventListener('DOMContentLoaded', () => {
+  buildTopicSections();
+  buildSidebar();
+  renderChapterOverview();
+  updateAllProgress();
+  showSection('home');
+  lucide.createIcons();
+});
+
+</script>
+</body>
+</html>
